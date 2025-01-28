@@ -501,7 +501,9 @@
     }
 
     .content {
-        margin-top: 90px;
+        margin-top: 0;
+        height: 100vh;
+        justify-content: center;
     }
 }
 

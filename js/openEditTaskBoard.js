@@ -1,39 +1,60 @@
-/**
- * to open the edit-section at the specified index in the task list.
- * @param {number} taskIndex - The index of the task to be opened.
-*/
-function openEdit(taskIndex) {
+function openEdit(taskId) {
   let showContent = document.getElementById("showTask");
   showContent.classList.add("hidden");
-  let editConten = document.getElementById("addTask-edit");
-  editConten.classList.remove("hidden");
+  let editContent = document.getElementById("addTask-edit");
+  editContent.classList.remove("hidden");
   let overlay = document.getElementsByClassName("overlay")[0];
   overlay.classList.remove("hidden");
-  let title = document.getElementById("addTask-edit-title");
-  let hiddenInput = document.getElementById("hiddenInput");
-  let description = document.getElementById("addTask-edit-description");
-  let assignedTo = document.getElementById("addTask-assigned");
-  let dates = document.getElementById("task-edit-Date");
-  title.value = tasks[taskIndex]["title"];
-  hiddenInput.value = tasks[taskIndex]["title"];
-  description.value = tasks[taskIndex]["description"];
-  assignedTo.value = tasks[taskIndex]["contacts"][taskIndex];
-  dates.value = tasks[taskIndex]["date"];
-  let selected = tasks[taskIndex]["contacts"];
-  showSelectedContactsEdit(selected);
-  generateEditTask(taskIndex);
+
+  // Suche die Aufgabe anhand der ID
+  const task = tasks.find(t => t.id === taskId);
+  
+  if (task) {
+    // Setze die Werte aus der gefundenen Aufgabe
+    let title = document.getElementById("addTask-edit-title");
+    let hiddenInput = document.getElementById("hiddenInput");
+    let description = document.getElementById("addTask-edit-description");
+    let assignedTo = document.getElementById("addTask-assigned");
+    let dates = document.getElementById("task-edit-Date");
+
+    title.value = task.title;
+    hiddenInput.value = task.title;
+    description.value = task.description;
+    assignedTo.value = task.contacts.join(", "); // Optional: je nach Struktur der Kontakte
+    dates.value = task.date;
+
+    // Zeige die ausgewählten Kontakte und Subtasks
+    showSelectedContactsEdit(task.contacts);
+    subtasksEditRender(taskId);
+    generateEditTask(taskId);
+  } else {
+    console.error("Task not found!");
+  }
 }
 
 
-function showSelectedContactsEdit(selected){
-  console.log(selected);
+function showSelectedContactsEdit(selected) {
+
+  // Iteriere durch die übergebenen IDs und finde die vollständigen Kontaktobjekte
   for (let i = 0; i < selected.length; i++) {
-    const selectedContact = selected[i];
-    let contactColor = selectedContact['color'];
-    let contactName = selectedContact['name'];
-    let index = contacts.findIndex(contact => contact.name === contactName);
-    contacts.splice(index, 1, { 'name': contactName, 'color': contactColor, 'selected': true });
-    selectedEditContacts.push(selectedContact);
+    const contactId = selected[i]; // ID des ausgewählten Kontakts
+
+    // Suche den Kontakt mit der ID im Kontakte-Array
+    const selectedContact = contacts.find(contact => contact.id === contactId);
+    
+    if (selectedContact) {
+      let contactColor = selectedContact['color'];
+      let contactName = selectedContact['name'];
+
+      // Finde den Index des Kontakts in dem globalen contacts Array
+      let index = contacts.findIndex(contact => contact.id === contactId);
+
+      // Aktualisiere den Kontakt in contacts, indem du den 'selected' Wert hinzufügst
+      contacts.splice(index, 1, { 'id': contactId, 'name': contactName, 'color': contactColor, 'selected': true });
+
+      // Füge den Kontakt zu selectedEditContacts hinzu
+      selectedEditContacts.push(selectedContact);
+    }
   }
 }
 
@@ -52,16 +73,18 @@ function generateEditTask(taskIndex){
 
 }
 
-function contactsEditRender(taskIndex){
+function contactsEditRender(taskId){
   let content = document.getElementsByClassName('user-content-edit-letter')[0];
   content.innerHTML ='';
+
+  const task = tasks.find(t => t.id === taskId);
     for(let j = 0; j < selectedEditContacts.length; j++){
       let letter = selectedEditContacts[j]['name'].split(" ");
       let result = "";
       for(let name = 0; name < letter.length; name++){
         result += letter[name].charAt(0).toUpperCase();
       }
-      content.innerHTML += `<div class="user-task-content" style="background-color:${tasks[taskIndex]['contacts'][j]['color']};">${result}</div>`;
+      content.innerHTML += `<div class="user-task-content" style="background-color:${task['contacts'][j]['color']};">${result}</div>`;
     }
 }
 
@@ -76,11 +99,11 @@ function generateInputEditSubtask(taskIndex){
   <input id="addTask-edit-subtasks${taskIndex}" class="inputfield" type="text"
   placeholder="Add new subtask" maxlength="26" autocomplete="off" onclick="openEditSubtaskIcons()"/>
   <div id="addTask-subtasks-edit-icons" class="subtasks-icon d-none">
-    <img  src="./img/closeVectorBlack.svg" alt="Delete" onclick="closeEditSubtaskIcons()">
+    <img  src="../img/closeVectorBlack.svg" alt="Delete" onclick="closeEditSubtaskIcons()">
     <div class="parting-line subtasks-icon-line"></div>
-    <img id="add-subtask-button" src="./img/done.svg" alt="confirm" onclick="addEditSubtasks(${taskIndex})">
+    <img id="add-subtask-button" src="../img/done.svg" alt="confirm" onclick="addEditSubtasks(${taskIndex})">
   </div>
-  <img src="./img/subtasks.svg" class="plus-icon-edit-subtasks" id="plus-edit-icon" onclick="openEditSubtaskIcons()"/>`;
+  <img src="../img/subtasks.svg" class="plus-icon-edit-subtasks" id="plus-edit-icon" onclick="openEditSubtaskIcons()"/>`;
 }
 
 
@@ -91,35 +114,44 @@ function generateInputEditSubtask(taskIndex){
  * to render the Subtask at the specified index in the task list.
  * @param {number} taskIndex - The index of the task to be rendered.
 */
-function subtasksEditRender(taskIndex){
+function subtasksEditRender(taskId){
   let content = document.getElementById('newSubtask');
-  content.innerHTML ='';
-  for(let j = 0;  j < tasks[taskIndex]['subtasks'].length; j++){
-    content.innerHTML += `
-  <div class="checkbox-edit-content">
-    <div id="checkbox-edit-content${j}" class="checkbox-show-content">
-      <input type="checkbox" checked id="checkSub${j}">
-      <label id="subtask-edit-text${j}" class="subtask-show-text">${tasks[taskIndex]['subtasks'][j]}</label>
-    </div>
+  content.innerHTML = '';
+  
+  // Finde die Aufgabe mit der angegebenen taskId
+  const task = tasks.find(t => t.id === taskId);
 
-    <div id="edit-input-board-content${j}" class=" subtasks-icon input-subtask-edit-content hidden">
-      <input type ="text" class="editInputBoard" id = "editInputBoard${j}" value =${tasks[taskIndex]['subtasks'][j]}>
-      <div class="edit-buttons-content">
-        <img onclick="deleteEditBoardSubtask(${taskIndex}, ${j})" src="./img/delete.svg" alt="delete">
-        <div class="parting-line subtasks-icon-line"></div>
-        <img onclick="confirmEdit(${taskIndex}, ${j})" src="./img/done.svg" alt="confirm">
-      </div>
-    </div>
+  if (task && task.subtasks) {
+    for (let j = 0; j < task.subtasks.length; j++) {
+      content.innerHTML += `
+        <div class="checkbox-edit-content">
+          <div id="checkbox-edit-content${j}" class="checkbox-show-content">
+            <input type="checkbox" checked id="checkSub${j}">
+            <label id="subtask-edit-text${j}" class="subtask-show-text">${task.subtasks[j]}</label>
+          </div>
 
-    <div id="subtasks-icon${j}" class="subtasks-icon subtasks-icon-hidden">
-      <img onclick="editBoardSubtask(${j})" src="./img/edit.svg" alt="edit">
-      <div class="parting-line subtasks-icon-line"></div>
-      <img onclick="deleteEditBoardSubtask(${taskIndex}, ${j})" src="./img/delete.svg" alt="delete">
-    </div>
-  </div> `
-    ;
+          <div id="edit-input-board-content${j}" class=" subtasks-icon input-subtask-edit-content hidden">
+            <input type="text" class="editInputBoard" id = "editInputBoard${j}" value =${task.subtasks[j]}>
+            <div class="edit-buttons-content">
+              <img onclick="deleteEditBoardSubtask(${taskId}, ${j})" src="../img/delete.svg" alt="delete">
+              <div class="parting-line subtasks-icon-line"></div>
+              <img onclick="confirmEdit(${taskId}, ${j})" src="../img/done.svg" alt="confirm">
+            </div>
+          </div>
+
+          <div id="subtasks-icon${j}" class="subtasks-icon subtasks-icon-hidden">
+            <img onclick="editBoardSubtask(${j})" src="../img/edit.svg" alt="edit">
+            <div class="parting-line subtasks-icon-line"></div>
+            <img onclick="deleteEditBoardSubtask(${taskId}, ${j})" src="../img/delete.svg" alt="delete">
+          </div>
+        </div>
+      `;
+    }
+  } else {
+    console.error("Subtasks not found for task!");
   }
 }
+
 
 
 /**
@@ -127,29 +159,48 @@ function subtasksEditRender(taskIndex){
  * @param {number} taskIndex - The index of the task to be confirmed
  * @param {number} subtaskIndex - The index of the Subtask to be confirmed
  */
-function confirmEdit(taskIndex, subtaskIndex){
+function confirmEdit(taskId, subtaskIndex) {
   let inputSubtask = document.getElementById(`editInputBoard${subtaskIndex}`).value;
-  deleteEditBoardSubtask(taskIndex, subtaskIndex);
-  if(!Array.isArray(tasks[taskIndex].subtasks)){
-    tasks[taskIndex].subtasks = [];
+
+  // Finde den Task anhand der taskId
+  const task = tasks.find(t => t.id === taskId);
+  if (!task) {
+    console.error("Task not found with id:", taskId);
+    return;
   }
-  tasks[taskIndex]["subtasks"].push(inputSubtask);
-  subtasksEditRender(taskIndex);
-  putData("/tasks", tasks);
-  inputSubtask ="";
+
+  // Überprüfe, ob die Subtask wirklich geändert oder gelöscht wurde
+  if (inputSubtask.trim() !== "" && task.subtasks[subtaskIndex] !== inputSubtask) {
+    // Wenn die Subtask geändert wurde, dann speichere die neue Subtask
+    task.subtasks[subtaskIndex] = inputSubtask;
+  } else {
+    // Wenn die Subtask leer ist oder nicht verändert wurde, lösche sie
+    deleteEditBoardSubtask(taskId, subtaskIndex);  // Löscht nur die Subtask, wenn sie leer ist oder entfernt wurde
+  }
+
+  // Render die Subtasks neu
+  subtasksEditRender(taskId);
+
+  // Schicke die aktualisierten Aufgaben an den Server
+  putData(task.id, task);  // Verwendet task.id, um die PUT-Anfrage korrekt zu senden
+
+  // Leere das Eingabefeld
+  inputSubtask = "";
 }
+
+
 
 
 /**
  * Edits the Subtask at the specified index in the task list.
  * @param {number} taskIndex - The index of the task to be edited
  */
-function editBoardSubtask(taskIndex){
-  document.getElementById(`edit-input-board-content${taskIndex}`).classList.remove('hidden');
-  document.getElementById(`checkbox-edit-content${taskIndex}`).classList.add('hidden');
-  document.getElementById(`subtasks-icon${taskIndex}`).classList.add('hidden');
-  let subtaskInput = document.getElementById(`editInputBoard${taskIndex}`).value;
-  let labelOfSubtask = document.getElementById(`subtask-edit-text${taskIndex}`);
+function editBoardSubtask(taskId){
+  document.getElementById(`edit-input-board-content${taskId}`).classList.remove('hidden');
+  document.getElementById(`checkbox-edit-content${taskId}`).classList.add('hidden');
+  document.getElementById(`subtasks-icon${taskId}`).classList.add('hidden');
+  let subtaskInput = document.getElementById(`editInputBoard${taskId}`).value;
+  let labelOfSubtask = document.getElementById(`subtask-edit-text${taskId}`);
   labelOfSubtask.innerHTML = subtaskInput;
 }
 
@@ -159,18 +210,30 @@ function editBoardSubtask(taskIndex){
  * @param {number} taskIndex -The index of the task to be deleted.
  * @param {number} subtaskIndex - The index of the Subtask to be deleted.
 */
-function deleteEditBoardSubtask(taskIndex, subtaskIndex){
-  if(tasks[taskIndex]["subtasks"].length === 1){
-    if(Array.isArray(tasks[taskIndex].subtasks)){
-      tasks[taskIndex].subtasks = "";
+function deleteEditBoardSubtask(taskId, subtaskIndex) {
+  // Finde die Aufgabe anhand der ID
+  const task = tasks.find(t => t.id === taskId);
+
+  if (task && Array.isArray(task.subtasks)) {  // Sicherstellen, dass die Aufgabe existiert und subtasks ein Array ist
+    if (task.subtasks.length === 1) {
+      // Wenn nur ein Subtask vorhanden ist, leere das Array
+      task.subtasks = [];
+    } else {
+      // Ansonsten entferne das Subtask an der angegebenen Indexposition
+      task.subtasks.splice(subtaskIndex, 1);
     }
-    subtasksEditRender(taskIndex);
-  }else{
-    tasks[taskIndex]["subtasks"].splice(subtaskIndex, 1);
-    subtasksEditRender(taskIndex);
+
+    // Render die subtasks neu und speichere die geänderten Daten
+    subtasksEditRender(taskId);
+    
+    // Hier gibst du nur den Task und nicht die Subtask-ID an die DELETE-Funktion weiter
+    putData(`${taskId}`, task);  // Task-Daten aktualisieren, nicht löschen
+  } else {
+    console.error("Task not found or subtasks is not an array for taskId:", taskId);
   }
-  putData("/tasks", tasks);
 }
+
+
 
 
 /**
@@ -194,50 +257,80 @@ function closeEditSubtaskIcons(){
  * to add the Subtask at the specified index in the task list.
  * @param {number} taskIndex - The index of the task to be edited
  */
-function addEditSubtasks(taskIndex){
-  let inputSubtask = document.getElementById(`addTask-edit-subtasks${taskIndex}`).value;
-      if(inputSubtask.trim() === ""){
-        return;
-      }else{
-        if(!Array.isArray(tasks[taskIndex].subtasks)){
-          tasks[taskIndex].subtasks = [];
-        }
-        if(tasks[taskIndex]["subtasks"].length === 2){
-          tasks[taskIndex]["subtasks"].pop();
-          tasks[taskIndex]["subtasks"].push(inputSubtask);
-        }else{
-          tasks[taskIndex]["subtasks"].push(inputSubtask);
-        }
-        generateEditSubtask(taskIndex);
-        putData("/tasks", tasks);
-        inputSubtask ="";
+function addEditSubtasks(taskId) {
+  let inputSubtask = document.getElementById(`addTask-edit-subtasks${taskId}`).value;
+
+  if(inputSubtask.trim() === "") {
+    return;
+  } else {
+    // Finde die Aufgabe anhand der ID
+    const task = tasks.find(t => t.id === taskId);
+
+    if (task) { // Stelle sicher, dass die Aufgabe gefunden wurde
+      // Überprüfe, ob die subtasks ein Array sind, andernfalls initialisiere es
+      if (!Array.isArray(task.subtasks)) {
+        task.subtasks = [];
       }
-      subtasksEditRender(taskIndex);
+
+      // Begrenze die Anzahl der Subtasks auf 2
+      if (task.subtasks.length === 2) {
+        task.subtasks.pop();  // Entferne das letzte Subtask
+        task.subtasks.push(inputSubtask);  // Füge das neue Subtask hinzu
+      } else {
+        task.subtasks.push(inputSubtask);  // Füge das Subtask einfach hinzu
+      }
+
+      // Aktualisiere die Darstellung der Subtasks
+      generateEditSubtask(taskId);
+
+      // Schicke die aktualisierten Aufgaben zurück an den Server
+      putData(task.id, task);  // Vergewissere dich, dass task.id übergeben wird
+
+    } else {
+      console.error("Task not found with id:", taskId);
+    }
+
+    // Leere das Eingabefeld nach der Bearbeitung
+    inputSubtask = "";
+    subtasksEditRender(taskId);  // Render die Subtasks neu
+  }
 }
+
+
 
 
 /**
  * to generate Subtasks at the specified index in the task list.
  * @param {number} taskIndex - The index of the task to be edited
  */
-function generateEditSubtask(taskIndex){
-  let list = document.getElementById('newSubtask');
-  list.innerHTML = '';
-  for(let i= 0; i < tasks[taskIndex]["subtasks"].length; i++){
-    list.innerHTML += `
-    <div class="checkbox-edit-content">
-      <div class="checkbox-show-content">
-        <input type="checkbox" checked>
-        <label class="subtask-show-text">${tasks[taskIndex]["subtasks"][i]}</label>
-      </div>
-      <div class="subtasks-icon subtasks-icon-hidden">
-        <img onclick="editBoardSubtask(${taskIndex})" src="./img/edit.svg" alt="Bearbeiten">
-        <div class="parting-line subtasks-icon-line"></div>
-        <img onclick="deleteEditBoardSubtask(${taskIndex})" src="./img/delete.svg" alt="Delete">
-      </div>
-    </div> `;
+function generateEditSubtask(taskId){
+  // Finde die Aufgabe anhand der ID
+  const task = tasks.find(t => t.id === taskId);
+  
+  if (task && Array.isArray(task.subtasks)) {  // Stelle sicher, dass die Aufgabe und subtasks existieren
+    let list = document.getElementById('newSubtask');
+    list.innerHTML = '';
+
+    for (let i = 0; i < task.subtasks.length; i++) {
+      list.innerHTML += `
+        <div class="checkbox-edit-content">
+          <div class="checkbox-show-content">
+            <input type="checkbox" checked>
+            <label class="subtask-show-text">${task.subtasks[i]}</label>
+          </div>
+          <div class="subtasks-icon subtasks-icon-hidden">
+            <img onclick="editBoardSubtask(${taskId})" src="../img/edit.svg" alt="Bearbeiten">
+            <div class="parting-line subtasks-icon-line"></div>
+            <img onclick="deleteEditBoardSubtask(${taskId})" src="../img/delete.svg" alt="Delete">
+          </div>
+        </div> 
+      `;
+    }
+  } else {
+    console.error("Task not found or subtasks is not an array for taskId:", taskId);
   }
 }
+
 
 
 /**
@@ -248,6 +341,7 @@ async function saveEditTask() {
   let hiddenInput = document.getElementById("hiddenInput").value;
   let description = document.getElementById("addTask-edit-description").value;
   let date = document.getElementById("task-edit-Date").value;
+  
   if (title.trim() === "" || date.trim() === "") {
     return;
   } else {
@@ -258,19 +352,27 @@ async function saveEditTask() {
         tasks[i].date = date;
         tasks[i].prioIcon = prioBtn;
         tasks[i].prio = prioText;
-        if(selectedEditContacts.length > 0){
-          tasks[i]["contacts"].splice(0, tasks[i]["contacts"].length);
-          tasks[i]["contacts"].push(...selectedEditContacts);
+
+        // Kontakte als IDs statt Objekten an Backend senden
+        if (selectedEditContacts.length > 0) {
+          tasks[i]["contacts"] = selectedEditContacts.map(contact => contact.id); // Nur die IDs
         }
+
         keepPrioButton(i);
+        
+        // Hier wird jetzt die Task-ID korrekt übergeben
+        await putData(tasks[i].id, tasks[i]);  // Task-ID und die geänderten Daten übergeben
         break;
       }
     }
   }
-  await  putData("/tasks", tasks);
+
   await updateHTML();
   await closeMe();
 }
+
+
+
 
 
 /**
@@ -283,13 +385,13 @@ function keepPrioButton(taskIndex){
   let lowEditbutton = document.getElementsByClassName("low-edit-button")[0];
   if(/(\s|^)active(\s|$)/.test(urgentEditbutton.className)) {
    tasks[taskIndex]["prio"] = 'Urgent';
-   tasks[taskIndex]["prioIcon"] = "./img/PrioAltaRed.svg";
+   tasks[taskIndex]["prioIcon"] = "../img/PrioAltaRed.svg";
   }else if(/(\s|^)active(\s|$)/.test(mediumEditbutton.className)){
     tasks[taskIndex]["prio"] = 'Medium';
-    tasks[taskIndex]["prioIcon"] = "./img/PrioMediaOrange.svg";
+    tasks[taskIndex]["prioIcon"] = "../img/PrioMediaOrange.svg";
   }else if(/(\s|^)active(\s|$)/.test(lowEditbutton.className)){
     tasks[taskIndex]["prio"] = 'Low';
-    tasks[taskIndex]["prioIcon"] = './img/PrioBajaGreen.svg';
+    tasks[taskIndex]["prioIcon"] = '../img/PrioBajaGreen.svg';
   }else{
     tasks[taskIndex]["prio"] = '';
     tasks[taskIndex]["prioIcon"] = '';
@@ -325,8 +427,8 @@ function urgentButtenEdit(lastClick){
     lowEditbutton.classList.remove("active");
     lastClick = urgentEditbutton;
     prioText ='Urgent'
-    prioIcon ='./img/PrioAltaWhite.svg';
-    prioBtn ="./img/PrioAltaRed.svg";
+    prioIcon ='../img/PrioAltaWhite.svg';
+    prioBtn ="../img/PrioAltaRed.svg";
     changeIconOfUrgent();
   });
 }
@@ -349,8 +451,8 @@ function mediumButtonEdit(lastClick){
     lowEditbutton.classList.remove("active");
     lastClick = mediumEditbutton;
     prioText = 'Medium';
-    prioIcon = './img/PrioMediaWhite.svg';
-    prioBtn = './img/PrioMediaOrange.svg';
+    prioIcon = '../img/PrioMediaWhite.svg';
+    prioBtn = '../img/PrioMediaOrange.svg';
     changeIconOfMedium();
   });
 }
@@ -373,8 +475,8 @@ function lowButtonEdit(lastClick){
     lowEditbutton.classList.add("active");
     lastClick = lowEditbutton;
     prioText = 'Low';
-    prioIcon = './img/PrioBajaWhite.svg';
-    prioBtn = './img/PrioBajaGreen.svg';
+    prioIcon = '../img/PrioBajaWhite.svg';
+    prioBtn = '../img/PrioBajaGreen.svg';
     changeIconOfLow();
   });
 }
@@ -383,28 +485,35 @@ function lowButtonEdit(lastClick){
  * to show the color of the button after edit click
  * @param {number} taskIndex - The index of the task to be changed
  */
-function activeButton(taskIndex){
-  if (tasks[taskIndex]["prio"] === "Low") {
-    document.getElementsByClassName("low-edit-button")[0].classList.add("active");
-    prioIcon = './img/PrioBajaWhite.svg';
-    changeIconOfLow();
-    document.getElementsByClassName("urgent-edit-button")[0].classList.remove("active");;
-    document.getElementsByClassName("medium-edit-button")[0].classList.remove("active");
-  } else if (tasks[taskIndex]["prio"] === "Urgent") {
-    document.getElementsByClassName("urgent-edit-button")[0].classList.add("active");
-    prioIcon ='./img/PrioAltaWhite.svg';
-    changeIconOfUrgent();
-    document.getElementsByClassName("low-edit-button")[0].classList.remove("active");
-    document.getElementsByClassName("medium-edit-button")[0].classList.remove("active");
-  } else if(tasks[taskIndex]["prio"] === "Medium") {
-    document.getElementsByClassName("medium-edit-button")[0].classList.add("active");
-    prioIcon = './img/PrioMediaWhite.svg';
-    changeIconOfMedium();
-    document.getElementsByClassName("low-edit-button")[0].classList.remove("active");
-    document.getElementsByClassName("urgent-edit-button")[0].classList.remove("active");
-  }else{
-    prio ='';
-    prioBtn ='';
+function activeButton(taskId){
+  // Finde die Aufgabe mit der angegebenen taskId
+  const task = tasks.find(t => t.id === taskId);
+
+  if (task) {
+    if (task.prio === "Low") {
+      document.getElementsByClassName("low-edit-button")[0].classList.add("active");
+      prioIcon = '../img/PrioBajaWhite.svg';
+      changeIconOfLow();
+      document.getElementsByClassName("urgent-edit-button")[0].classList.remove("active");
+      document.getElementsByClassName("medium-edit-button")[0].classList.remove("active");
+    } else if (task.prio === "Urgent") {
+      document.getElementsByClassName("urgent-edit-button")[0].classList.add("active");
+      prioIcon = '../img/PrioAltaWhite.svg';
+      changeIconOfUrgent();
+      document.getElementsByClassName("low-edit-button")[0].classList.remove("active");
+      document.getElementsByClassName("medium-edit-button")[0].classList.remove("active");
+    } else if (task.prio === "Medium") {
+      document.getElementsByClassName("medium-edit-button")[0].classList.add("active");
+      prioIcon = '../img/PrioMediaWhite.svg';
+      changeIconOfMedium();
+      document.getElementsByClassName("low-edit-button")[0].classList.remove("active");
+      document.getElementsByClassName("urgent-edit-button")[0].classList.remove("active");
+    } else {
+      prio = '';
+      prioBtn = '';
+    }
+  } else {
+    console.error("Task not found!");
   }
 }
 
@@ -416,9 +525,9 @@ function changeIconOfUrgent(){
   let urgent = document.getElementById('urgentImg');
   urgent.src = prioIcon;
   let medium = document.getElementById('mediumImg');
-  medium.src = './img/PrioMediaOrange.svg';
+  medium.src = '../img/PrioMediaOrange.svg';
   let low = document.getElementById('lowImg');
-  low.src = './img/PrioBajaGreen.svg';
+  low.src = '../img/PrioBajaGreen.svg';
 }
 
 
@@ -429,9 +538,9 @@ function changeIconOfMedium(){
   let medium = document.getElementById('mediumImg');
   medium.src = prioIcon;
   let urgent = document.getElementById('urgentImg');
-  urgent.src = './img/PrioAltaRed.svg';
+  urgent.src = '../img/PrioAltaRed.svg';
   let low = document.getElementById('lowImg');
-  low.src = './img/PrioBajaGreen.svg';
+  low.src = '../img/PrioBajaGreen.svg';
 }
 
 
@@ -442,7 +551,7 @@ function changeIconOfLow(){
   let low = document.getElementById('lowImg');
   low.src = prioIcon;
   let medium = document.getElementById('mediumImg');
-  medium.src = './img/PrioMediaOrange.svg';
+  medium.src = '../img/PrioMediaOrange.svg';
   let urgent = document.getElementById('urgentImg');
-  urgent.src = './img/PrioAltaRed.svg';
+  urgent.src = '../img/PrioAltaRed.svg';
 }

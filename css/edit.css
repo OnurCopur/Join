@@ -278,7 +278,7 @@
     color: white !important;
 
     .contact-container-check {
-        background-image: url('../img/checkedbuttonWhite.svg');
+        background-image: url('/img/checkedbuttonWhite.svg');
     }
   }
 

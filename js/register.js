@@ -76,11 +76,33 @@ async function addUser() {
         return;
     }
 
-    users.push({name: name, email: email, password: password});     // Benutzer zum Array hinzufügen
-    await postData("users", {name: name, email: email, password: password});        // Daten in Firebase speichern
-    window.location.href = 'index.html?msg=You have successfully registered';
-    clearInputFields();
+    try {
+        let response = await fetch("http://127.0.0.1:8000/api/auth/register/", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: name,
+                email: email,
+                password: password,
+                password_confirm: passwordConfirm
+            })
+        });
+        if (response.ok) {
+            let data = await response.json();
+            alert("Registration successful! Token: " + data.token);
+            localStorage.setItem('token', data.token); // Token speichern
+            window.location.href = 'index.html'; // Weiterleitung nach erfolgreicher Registrierung
+        }
+        else {
+            let errorData = await response.json();
+            msgbox.innerHTML = JSON.stringify(errorData);
+        }
+    } catch (error) {
+        console.error("Error during registration:", error);
+        msgbox.innerHTML = "An error occurred. Please try again.";
+    }
 }
+
 
 
 /**
@@ -88,20 +110,22 @@ async function addUser() {
  * and ensures that all required criteria are met before the registration of a new user is continued.
  */
 function validateUserInput(name, email, password, passwordConfirm, msgbox) {
-    if (!checkPasswordMatch(password, passwordConfirm, msgbox)) {         // Passwort und Passwortbestätigung überprüfen
+    if (!checkPasswordMatch(password, passwordConfirm, msgbox)) {
         return false;
     }
-    if (!checkPrivacyPolicy(msgbox)) {      // Überprüfen, ob die Checkbox akzeptiert wurde
+    if (!checkPrivacyPolicy(msgbox)) {
         return false;
     }
-    if (!checkInputValidity(name, email, password, msgbox)) {      // Überprüfen von Name, E-Mail und Passwort
+    if (!checkInputValidity(name, email, password, msgbox)) {
         return false;
     }
-    if (!checkExistingUser(email, password, msgbox)) {    // Überprüfen, ob E-Mail oder Passwort bereits existieren
+    if (users.some(user => user.email === email)) {  // Überprüfen, ob E-Mail bereits existiert
+        msgbox.innerHTML = "Email already exists";
         return false;
     }
     return true;
 }
+
 
 
 /**
@@ -184,13 +208,49 @@ function clearInputFields() {
  * this function is for the login
  */
 async function login() {
-    let email = document.getElementById('email-login').value;
-    let password = document.getElementById('password-login').value;
-    let rememberMeChecked = document.getElementById('loginCheckBoxRememberMe').checked;
+    let email = document.getElementById('email-login').value.trim();
+    let password = document.getElementById('password-login').value.trim();
     let msgbox = document.getElementById('msgbox');
 
-    handleLogin(email, password, rememberMeChecked, msgbox);
+    try {
+        let response = await fetch(BASE_URL + "auth/login/", {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ email: email, password: password })
+        });
+
+        if (response.ok) {
+            let data = await response.json();
+            console.log("Login response data:", data);
+            // Das Token nach erfolgreichem Login speichern
+            localStorage.setItem('token', data.token);  
+            sessionStorage.setItem('loggedInUser', data.username);
+            sessionStorage.setItem('loggedInEmail', data.email);
+
+            // Nach dem erfolgreichen Login, den Benutzer aus dem Backend laden:
+            let usersResponse = await fetch(BASE_URL + "auth/users/", {
+                headers: {
+                    'Authorization': `Token ${data.token}`
+                }
+            });
+            let usersData = await usersResponse.json();
+            users = usersData;  // Benutzer im lokalen Array speichern
+            console.log("Loaded users:", users);
+
+            alert("Login successful!");
+            window.location.href = 'summary.html';  // Weiterleitung zur Seite
+        } else {
+            msgbox.innerHTML = "Invalid email or password.";
+        }
+    } catch (error) {
+        console.error("Login error:", error);
+        msgbox.innerHTML = "An error occurred. Please try again.";
+    }
 }
+
+
 
 
 /**
@@ -216,10 +276,23 @@ function handleLogin(email, password, rememberMeChecked, msgbox) {
 /**
  * this function is for the logout
  */
-function logout() {
-    sessionStorage.removeItem('loggedInUser');
-    window.location.href = "index.html";
+async function logout() {
+    try {
+        let token = localStorage.getItem('token');
+        await fetch(BASE_URL + "auth/logout/", {
+            method: 'POST',
+            headers: { 'Authorization': `Token ${token}` }
+        });
+        localStorage.removeItem('token');
+        sessionStorage.removeItem('loggedInUser');
+        sessionStorage.removeItem('loggedInEmail');
+        alert("Logout successful!");
+        window.location.href = "index.html";
+    } catch (error) {
+        console.error("Logout error:", error);
+    }
 }
+
 
 
 /**

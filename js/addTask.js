@@ -2,7 +2,7 @@ let prioBtn = "";
 
 
 /**
- * loads navBar, header, arrays from firebase & renders contacts
+ * loads navBar, header, arrays from backend & renders contacts
  */
 async function init() {
     await initInclude(); // from include.js
@@ -11,6 +11,7 @@ async function init() {
     loadTasks(); // from storage.js
     renderContacts('addTask-contacts-container');
     chooseMedium();
+    loadData();
 }
 
 
@@ -142,6 +143,7 @@ function openCategories(event) {
     selectedCategory.innerHTML = `Select task category`;
 }
 
+
 /**
  * opens/closes categories --> with click within or outside of container
  */
@@ -195,83 +197,105 @@ async function createTask() {
     }
 }
 
+
 /**
- * gets values of inputfields
+ * Gets values from input fields and prepares task data.
  */
 function getValues() {
-    let title = document.getElementById('taskTitle').value;
-    let description = document.getElementById('addTask-description').value;
-    if (description === '') { description = '' };
-    let date = document.getElementById('taskDate').value;
-    let prio = getPrio();
-    let category = document.getElementById('select-task-text').innerHTML;
+    const title = document.getElementById('taskTitle').value;
+    const description = document.getElementById('addTask-description').value || ''; // Default auf leer
+    const date = document.getElementById('taskDate').value;
+    const category = document.getElementById('select-task-text').innerHTML;
+
+    // Ruft prio und prioIcon ab
+    const { prio, prioBtn } = getPrio();
+
+    // Übergibt die Werte an pushTaskElements
     pushTaskElements(title, description, date, prio, category, prioBtn);
 }
 
 
+
 /**
- * checks which prio button is selected
+ * Checks which prio button is selected and returns prio and prioIcon.
  * 
- * @returns string - selected prio
+ * @returns {object} - { prio, prioBtn }
  */
 function getPrio() {
+    let prio = '';
+    let prioBtn = '';
     if (document.getElementById('urgentButton').classList.contains('urgentButton-focus')) {
-        prio = 'Urgent'
-        prioBtn = './img/PrioAltaRed.svg'
+        prio = 'Urgent';
+        prioBtn = '/img/PrioAltaRed.svg';
     } else if (document.getElementById('mediumButton').classList.contains('mediumButton-focus')) {
-        prio = 'Medium'
-        prioBtn= './img/PrioMediaOrange.svg'
+        prio = 'Medium';
+        prioBtn = '/img/PrioMediaOrange.svg';
     } else if (document.getElementById('lowButton').classList.contains('lowButton-focus')) {
-        prio = 'Low'
-        prioBtn = './img/PrioBajaGreen.svg'
-    } else {
-        prio = ''
+        prio = 'Low';
+        prioBtn = '/img/PrioBajaGreen.svg';
     }
-    return prio
+    return { prio, prioBtn };
 }
 
 
+
+
 /**
- * pushing information to tasks array
+ * Pushing information to tasks array.
  * 
  * @param {string} title - text of title input
  * @param {string} description - text of description input
  * @param {string} date - date of date input
  * @param {string} prio - selected urgent, medium or low button
  * @param {string} category - chosen category
+ * @param {string} prioBtn - Icon URL for prio
  */
 function pushTaskElements(title, description, date, prio, category, prioBtn) {
-    if (selectedContacts.length < 1) { selectedContacts = '' };
-    if (subtasks.length < 1) { subtasks = '' };
-    let currentId = tasks.length;
-    tasks.push({
+    if (selectedContacts.length < 1) { selectedContacts = [] };  // Sicherstellen, dass Kontakte ein Array ist
+    if (subtasks.length < 1) { subtasks = [] };  // Sicherstellen, dass Subtasks ein Array ist
+
+    // Standardwert für prioBtn, falls nicht gesetzt
+    if (!prioBtn) {
+        console.warn("prioBtn ist nicht gesetzt, Standardwert wird verwendet.");
+        prioBtn = '/img/defaultPrioIcon.svg'; // Fallback-Icon
+    }
+
+    const contactIds = selectedContacts.map(contact => contact.id).filter(id => id);
+
+    const newTask = {
         'title': title,
         'description': description,
-        'contacts': selectedContacts,
+        'contacts': contactIds,
         'date': date,
         'prio': prio,
         'category': category,
         'subtasks': subtasks,
         'phases': 'To Do',
-        'ID': currentId++,
         'prioIcon': prioBtn
-    })
+    };
+
+    console.log("Neue Aufgabe erstellt:", newTask);
+    tasks.push(newTask);
 }
+
+
+
+
+
 
 
 /**
- * creates or updates tasks array on firebase
+ * creates or updates tasks array on backend
  */
 async function safeTask() {
-    if (tasks === '') {
-        tasks.push({
-            'ID': 0,
-        })
-        await postData("/tasks", tasks) // from storage.js
+    if (tasks.length > 0) {  // Sicherstellen, dass tasks nicht leer ist
+        await postData(tasks[tasks.length - 1]);  // Nur das zuletzt hinzugefügte Task übergeben
     } else {
-        await putData("/tasks", tasks) // from storage.js
+        console.error("Keine Aufgaben zu senden.");
     }
 }
+
+
 
 
 /**
@@ -345,7 +369,7 @@ async function clearAddTask() {
     selectedContacts = [];
     subtasks = [];
     contacts = [];
-    await loadData();
+    await loadDataLogin();
     renderContacts('addTask-contacts-container');
 }
 

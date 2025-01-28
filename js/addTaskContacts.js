@@ -75,14 +75,17 @@ function openCloseContacts(event) {
     event.stopPropagation();
     let container = document.getElementById('addTask-contacts-container');
     let img = document.getElementById('dropdown-img-contacts');
+
     if (container.classList.contains('d-none')) {
+        renderEditContacts('addTask-contacts-container', true); // Kontakte für Dropdown rendern
         openDropdown(container, img);
         hideSelectedContacts();
     } else {
         closeDropdown(container, img);
         showSelectedContacts();
     }
-};
+}
+
 
 
 /**
@@ -94,17 +97,20 @@ function selectContact(i) {
     let container = document.getElementById(`contact-container${i}`);
     let contactName = contacts[i]['name'];
     let contactColor = contacts[i]['color'];
+    let contactId = contacts[i]['id'];  // Holen der Kontakt-ID
     let indexSelected = selectedContacts.findIndex(contact => contact.name === contactName);
+    
     if (contacts[i]['selected'] === true) {
         selectedContacts.splice(indexSelected, 1);
-        contacts.splice(i, 1, { 'name': contactName, 'color': contactColor, 'selected': false });
+        contacts[i].selected = false;
         container.classList.remove('contact-container-focus');
     } else {
-        selectedContacts.push({ 'name': contactName, 'color': contactColor, 'selected': true });
-        contacts.splice(i, 1, { 'name': contactName, 'color': contactColor, 'selected': true });
+        selectedContacts.push({ 'id': contactId, 'name': contactName, 'color': contactColor, 'selected': true });
+        contacts[i].selected = true;
         container.classList.add('contact-container-focus');
     }
 }
+
 
 
 /**
@@ -234,12 +240,16 @@ function addContactSearch(i) {
     let container = document.getElementById(`contact-container${i}`);
     let contactName = contactsSearch[i]['name'];
     let contactColor = contactsSearch[i]['color'];
+    let contactId = contactsSearch[i]['id'];  // Holen der Kontakt-ID
     let index = contacts.findIndex(contact => contact.name === contactName);
-    selectedContacts.push({ 'name': contactName,  'color': contactColor, 'selected': true });
-    contacts.splice(index, 1, { 'name': contactName, 'color': contactColor, 'selected': true });
-    contactsSearch.splice(i, 1, { 'name': contactName, 'color': contactColor, 'selected': true });
+    
+    selectedContacts.push({ 'id': contactId, 'name': contactName, 'color': contactColor, 'selected': true });
+    contacts[index].selected = true;
+    contactsSearch[i].selected = true;
+    
     container.classList.add('contact-container-focus');
 }
+
 
 
 /**

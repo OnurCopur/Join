@@ -1,7 +1,7 @@
 async function initInclude() {
     await includeHTML();
-    await loadData();
-    //displayUserInitials();
+    await loadDataLogin();
+    displayUserInitials();
 }
 
 
@@ -69,6 +69,6 @@ function redirectToLegalNoticeSignup() {
 
 async function initHelp() {
     await includeHTML();
-    await loadData();
+    await loadDataLogin();
     displayUserInitials();
 }

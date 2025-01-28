@@ -3,63 +3,60 @@
  * Deletes a contact.
  * Removes the contact from the arrays and Firebase, and reloads the contacts.
  */
-async function deleteContact(index) {
-    const contactId = contactIds[index]; 
+async function deleteContact(id) {
+    console.log('Attempting to delete contact with id:', id); // Debugging-Ausgabe
 
-    await deleteContactBackend(`/contacts/${contactId}`);
+    // Sicherstellen, dass die ID korrekt verglichen wird
+    const index = contactIds.indexOf(Number(id)); // id auf eine Zahl konvertieren
 
-    nameInput.splice(index, 1);
-    emailInput.splice(index, 1);
-    phoneNumbersInput.splice(index, 1);
-    contactIds.splice(index, 1);
-    loadedColors.splice(index, 1);
+    if (index === -1) {
+        console.error('Contact not found with id:', id);
+        return;
+    }
 
-    sortContactsByNameAndRender(); 
+    try {
+        // Lösche den Kontakt im Backend
+        await deleteContactBackend(id);
 
-    let dialog = document.getElementById('contactsRightSectionShowProfil');
-    dialog.classList.remove('slide-in');
+        // Entferne den Kontakt aus den lokalen Arrays
+        contacts.splice(index, 1);
+        nameInput.splice(index, 1);
+        emailInput.splice(index, 1);
+        phoneNumbersInput.splice(index, 1);
+        contactIds.splice(index, 1);
+        loadedColors.splice(index, 1);
 
-    if (nameInput.length === 0) {
-        document.getElementById('contactList').innerHTML = '';
-    } else {
-        const contactsData = await fetchContactsData("/contacts");
-        if (!contactsData) {
-            console.error("No contact data found.");
-            return;
+        // Rendere die aktualisierte Kontaktliste
+        sortContactsByNameAndRender();
+
+        // Schließe das Profil-Dialogfeld, falls es geöffnet ist
+        let dialog = document.getElementById('contactsRightSectionShowProfil');
+        if (dialog) {
+            dialog.classList.remove('slide-in');
         }
 
-        const contacts = [];
-        let i = 0;
-        for (let key in contactsData) {
-            if (contactsData.hasOwnProperty(key)) {
-                const contact = contactsData[key];
-                if (contact && contact.name !== undefined && contact.email !== undefined && contact.nummer !== undefined && contact.color !== undefined) {
-                    contacts.push({
-                        color: contact.color,
-                        email: contact.email,
-                        name: contact.name,
-                        nummer: contact.nummer
-                    });
-                    i++;
-                }
-            }
+        // Überprüfe, ob noch Kontakte vorhanden sind, und aktualisiere die Anzeige
+        if (contacts.length === 0) {
+            document.getElementById('contactList').innerHTML = '';
+        } else {
+            showFullContactResponsive(); // Falls eine Aktualisierung nötig ist
         }
-        await deleteContactBackend("/contacts");
-        for (let i = 0; i < contacts.length; i++) {
-            await createNewContactInFirebase(contacts[i].name, contacts[i].email, contacts[i].nummer, contacts[i].color, i);
-        }
-        await loadContacts();
+    } catch (error) {
+        console.error('Failed to delete contact in Backend:', error.message);
     }
 }
+
 
 /**
  * Edits a contact.
  * Shows the dialog with the contact details prefilled for editing.
  */
-function editContact(index, nextColor) {
+function editContact(id, nextColor) {
+    const contact = contacts.find(c => c.id === id);
+
     document.getElementById('overlay').style.display = 'block'; 
     document.getElementById('dialogNewContactDiv').classList.remove('d-none');
-    document.getElementById('dialogNewContactDiv').innerHTML = HTMLTemplateEditContact(index, nextColor); 
+    document.getElementById('dialogNewContactDiv').innerHTML = HTMLTemplateEditContact(id, nextColor); 
 
     let dialog = document.querySelector('.dialogNewContactDiv');
     dialog.classList.remove('slide-in'); 
@@ -77,23 +74,50 @@ function editContact(index, nextColor) {
 /**
  * Returns the HTML template for editing a contact.
  */
-function HTMLTemplateEditContact(index, nextColor){
-    let name = nameInput[index];
-    let email = emailInput[index];
-    let phone = phoneNumbersInput[index];
-    let initials = getInitials(name);
+function editContact(id, nextColor) {
+    const contact = contacts.find(c => Number(c.id) === Number(id));
+
+
+    if (!contact) {
+        console.error('Kontakt nicht gefunden!');
+        return;
+    }
+
+    document.getElementById('overlay').style.display = 'block'; 
+    document.getElementById('dialogNewContactDiv').classList.remove('d-none');
+    document.getElementById('dialogNewContactDiv').innerHTML = HTMLTemplateEditContact(contact, nextColor); 
+
+    let dialog = document.querySelector('.dialogNewContactDiv');
+    dialog.classList.remove('slide-in'); 
+    setTimeout(() => {
+        dialog.classList.add('slide-in');
+    }, 50); 
+
+    document.getElementById('overlay').addEventListener('click', function(event) {
+        if (event.target === this) {
+            closeContactDialog();
+        }
+    });
+}
+
+/**
+ * Returns the HTML template for editing a contact.
+ */
+function HTMLTemplateEditContact(contact, nextColor) {
+    let { name, email, number } = contact;  // Direktes Destructuring des Kontaktobjekts
+    let initials = getInitials(name);  // Initialen aus dem Namen generieren
     
     return `    
         <div class="dialogNewContactInnerDiv">
             <div class="dialogLeft">
-                <img class="joinLogoDialog" src="./img/Capa 2.png">
+                <img class="joinLogoDialog" src="/img/Capa 2.png">
                 <div class="dialogLeftInnerDiv">
                     <h1 class="HeadlineDialog">Edit contact</h1>
                 </div>
             </div>
             <div class="dialogRight">
                 <div class="dialogCloseDiv">
-                <img onclick="closeContactDialog()" class="closeResponsiveButton" src="./img/closeResponsive.png">
+                <img onclick="closeContactDialog()" class="closeResponsiveButton" src="/img/closeVectorBlue.svg">
                 </div>
                 <div class="dialogProfilPictureDiv">
                     <div class="circleProfilPicShowEdit" style="background-color: ${nextColor}">${initials}</div>
@@ -101,20 +125,20 @@ function HTMLTemplateEditContact(index, nextColor){
                         <div class="dialogInputfield">
                             <div class="dialogInputfieldDiv">
                                 <input id="inputName" value="${name}">
-                                <img class="dialogIcons" src="./img/person.png">
+                                <img class="dialogIcons" src="/img/person.png">
                             </div>
                             <div class="dialogInputfieldDiv">
                                 <input id="inputMail" value="${email}" type="email" pattern=".+@.+" required>
-                                <img class="dialogIcons" src="./img/mail.png">
+                                <img class="dialogIcons" src="/img/mail.png">
                             </div>
                             <div class="dialogInputfieldDiv">
-                                <input id="inputPhone" value="${phone}" type="number" class="no-spinners">
-                                <img class="dialogIcons" src="./img/call.png">
+                                <input id="inputPhone" value="${number}" type="number" class="no-spinners">
+                                <img class="dialogIcons" src="/img/call.png">
                             </div>
                         </div>
                         <div class="dialogButtonDiv">
                             <button onclick="closeContactDialog()" class="cancelButton">Cancel</button>
-                            <button onclick="saveEditContact(${index}, '${nextColor}')" class="createContactButton">Save<img src="./img/check.png"></button>
+                            <button onclick="saveEditContact(${contact.id}, '${nextColor}')" class="createContactButton">Save<img src="/img/check.png"></button>
                         </div>
                     </div> 
                 </div>
@@ -123,47 +147,84 @@ function HTMLTemplateEditContact(index, nextColor){
     `;
 }
 
+
 /**
  * Renders the edited contact.
  * Updates the contact list with the edited contact details.
  */
-function renderEditContact(index,nextColor) {
-    let editedContactHTML = renderHTMLLeftContactSide(nameInput[index], emailInput[index], phoneNumbersInput[index], index, nextColor);
-    let contactListItem = document.getElementById(`contactListInner${index}`);
+function renderEditContact(id, nextColor) {
+    // Finde den Kontakt anhand der ID
+    const contact = contacts.find(c => c.id === id);
+
+    // Überprüfe, ob der Kontakt gefunden wurde
+    if (!contact) {
+        console.error('Kontakt nicht gefunden!');
+        return;
+    }
+
+    // Render das HTML für den bearbeiteten Kontakt
+    let editedContactHTML = renderHTMLLeftContactSide(contact.name, contact.email, contact.number, id, nextColor);
+    
+    // Hole das Element anhand der ID
+    let contactListItem = document.getElementById(`contactListInner${id}`);
+    
     if (contactListItem) {
         contactListItem.innerHTML = editedContactHTML;
     } else {
-        console.error(`Element with ID contactListInner${index} not found.`);
+        console.error(`Element with ID contactListInner${id} not found.`);
     }
 }
 
+
+
 /**
  * Saves the edited contact.
- * Updates the contact details in the arrays and Firebase, sorts and renders the contacts.
+ * Updates the contact details in the arrays and Backend, sorts and renders the contacts.
  */
-async function saveEditContact(index, nextColor) {
+async function saveEditContact(id, nextColor) {
     let changedName = document.getElementById('inputName').value;
     let changedMail = document.getElementById('inputMail').value;
     let changedPhone = document.getElementById('inputPhone').value;
 
-    const id = contactIds[index];
-    nameInput[index] = changedName;
-    emailInput[index] = changedMail;
-    phoneNumbersInput[index] = changedPhone;
-    loadedColors[index] = nextColor;
+    // Hole den Kontakt basierend auf der ID
+    const contact = contacts.find(c => c.id === id);
 
-    try {
-        await updateContactInFirebase(id, changedName, changedMail, changedPhone, nextColor);
-        sortContactsByNameAndRender();
-    } catch (error) {
-        console.error('Failed to update contact in Firebase:', error.message);
+    // Überprüfe, ob der Kontakt gefunden wurde
+    if (!contact) {
+        console.error('Kontakt nicht gefunden!');
+        return;
     }
 
-    closeContactDialog();
-    showFullContact(index, nextColor);
-    renderEditContact(index, nextColor);
-    
+    try {
+        // Aktualisiere den Kontakt im Backend
+        const updatedContact = await updateContactBackend(
+            id,  // Verwende die ID direkt
+            changedName,
+            changedMail,
+            changedPhone,
+            nextColor
+        );
+
+        // Aktualisiere den Kontakt im lokalen Array
+        const index = contacts.findIndex(c => c.id === id); // Hole den Index des Kontakts anhand der ID
+        contacts[index] = updatedContact;
+        nameInput[index] = updatedContact.name;
+        emailInput[index] = updatedContact.email;
+        phoneNumbersInput[index] = updatedContact.number;
+        loadedColors[index] = updatedContact.color;
+
+        // Rendere die aktualisierte Ansicht
+        renderEditContact(id, updatedContact.color);  // Verwende die ID, nicht den Index
+        sortContactsByNameAndRender();
+
+        closeContactDialog();
+        showFullContact(id, updatedContact.color);  // Verwende die ID, nicht den Index
+    } catch (error) {
+        console.error('Failed to update contact in Backend:', error.message);
+    }
 }
+
+
 
 /**
  * Goes back to the previous responsive view.

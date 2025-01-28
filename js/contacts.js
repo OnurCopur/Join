@@ -6,8 +6,7 @@ async function init(){
     await initInclude();
     await loadContacts();
     contactsBgMenu();
-    displayUserInitials();
-    
+    // displayUserInitials();
 }
 
 let nameInput = [];
@@ -53,8 +52,8 @@ function HTMLTemplateNewContact() {
 <form onsubmit="createNewContact(); return false;">
     <div class="dialogNewContactInnerDiv">
         <div class="dialogLeft">
-        <img onclick="closeContactDialog()" class="closeResponsiveButton" src="./img/closeResponsive.png">
-            <img class="joinLogoDialog" src="./img/Capa 2.png">
+        <img onclick="closeContactDialog()" class="closeResponsiveButton" src="/img/closeVectorBlue.svg">
+            <img class="joinLogoDialog" src="/img/Capa 2.png">
             <div class="dialogLeftInnerDiv">
                 <h1 class="HeadlineDialog">Add contact</h1>
                 <p class="subheadingDialog">Tasks are better with a team!</p>
@@ -63,28 +62,28 @@ function HTMLTemplateNewContact() {
         </div>
         <div class="dialogRight">
             <div class="dialogCloseDiv">
-                <img onclick="closeContactDialog()" class="closeIcon" src="./img/close.png">
+                <img onclick="closeContactDialog()" class="closeIcon" src="/img/close.png">
             </div>
             <div class="dialogProfilPictureDiv">
-                <img class="dialogProfilPicture" src="./img/Group 13.png">
+                <img class="dialogProfilPicture" src="/img/Group 13.png">
                 <div class="dialogAddData">
                     <div class="dialogInputfield">
                         <div class="dialogInputfieldDiv">
                             <input id="inputName" placeholder="Name" required>
-                            <img class="dialogIcons" src="./img/person.png">
+                            <img class="dialogIcons" src="/img/person.png">
                         </div>
                         <div class="dialogInputfieldDiv">
                             <input id="inputMail" type="email" placeholder="Email" pattern=".+@.+" required>
-                            <img class="dialogIcons" src="./img/mail.png">
+                            <img class="dialogIcons" src="/img/mail.png">
                         </div>
                         <div class="dialogInputfieldDiv">
                             <input id="inputPhone" type="number" placeholder="Phone" class="no-spinners" required>
-                            <img class="dialogIcons" src="./img/call.png">
+                            <img class="dialogIcons" src="/img/call.png">
                         </div>
                     </div> 
                     <div class="dialogButtonDiv">
-                        <button type="button" onclick="closeContactDialog()" class="cancelButton">Cancel<img src="./img/close.png"></button>
-                        <button type="submit" class="createContactButton">Create contact<img src="./img/check.png"></button>
+                        <button type="button" onclick="closeContactDialog()" class="cancelButton">Cancel<img src="/img/close.png"></button>
+                        <button type="submit" class="createContactButton">Create contact<img src="/img/check.png"></button>
                     </div>
                 </div> 
             </div>
@@ -117,7 +116,7 @@ async function createNewContact(){
 
     document.getElementById('overlay').style.display = 'none'; 
     document.getElementById('dialogNewContactDiv').classList.add('d-none');
-    const newContactId = await createNewContactInFirebase(name, mail, phone, nextColor); 
+    const newContactId = await createNewContactBackend(name, mail, phone, nextColor); 
     contactIds.push(newContactId);
     sortContactsByNameAndRender();
 }
@@ -127,51 +126,61 @@ async function createNewContact(){
  * Reorders the name, email, phone number, color, and ID arrays based on the sorted names.
  */
 function sortContactsByNameAndRender() {
-    const sortedIndices = [...nameInput.keys()].sort((a, b) => nameInput[a].localeCompare(nameInput[b]));
+    // Erstelle ein Array aus allen Kontakten
+    const contacts = nameInput.map((name, index) => ({
+        name,
+        email: emailInput[index],
+        number: phoneNumbersInput[index],
+        color: loadedColors[index],
+        id: contactIds[index],
+    }));
 
-    const sortedNames = sortedIndices.map(i => nameInput[i]);
-    const sortedEmails = sortedIndices.map(i => emailInput[i]);
-    const sortedPhoneNumbers = sortedIndices.map(i => phoneNumbersInput[i]);
-    const sortedColors = sortedIndices.map(i => loadedColors[i]);
-    const sortedIds = sortedIndices.map(i => contactIds[i]);
+    // Sortiere die Kontakte nach Name
+    contacts.sort((a, b) => a.name.localeCompare(b.name));
 
+    // Aktualisiere die Arrays basierend auf der sortierten Reihenfolge
     nameInput.length = 0;
     emailInput.length = 0;
     phoneNumbersInput.length = 0;
     loadedColors.length = 0;
     contactIds.length = 0;
 
-    nameInput.push(...sortedNames);
-    emailInput.push(...sortedEmails);
-    phoneNumbersInput.push(...sortedPhoneNumbers);
-    loadedColors.push(...sortedColors);
-    contactIds.push(...sortedIds);
+    contacts.forEach(contact => {
+        nameInput.push(contact.name);
+        emailInput.push(contact.email);
+        phoneNumbersInput.push(contact.number);
+        loadedColors.push(contact.color);
+        contactIds.push(contact.id);
+    });
 
+    // Render die Kontakte im Frontend
     const contactList = document.getElementById('contactList');
     contactList.innerHTML = '';
 
     let currentInitial = '';
-    nameInput.forEach((name, index) => {
-        const initial = name.charAt(0).toUpperCase();
+    contacts.forEach(contact => {
+        console.log("Rendering contact with ID:", contact.id); // Überprüfe die ID
+        const initial = contact.name.charAt(0).toUpperCase();
         if (initial !== currentInitial) {
             const letterDiv = document.createElement('div');
             letterDiv.classList.add('letter');
             letterDiv.textContent = initial;
             contactList.appendChild(letterDiv);
-
+    
             const lineDiv = document.createElement('div');
             lineDiv.classList.add('lineLeftSection');
             contactList.appendChild(lineDiv);
-
+    
             currentInitial = initial;
         }
-
+    
         const contactDiv = document.createElement('div');
         contactDiv.classList.add('contactListInner');
-        contactDiv.innerHTML = renderHTMLLeftContactSide(name, emailInput[index], phoneNumbersInput[index], index, loadedColors[index]);
+        contactDiv.innerHTML = renderHTMLLeftContactSide(contact.name, contact.email, contact.number, contact.id, contact.color);
         contactList.appendChild(contactDiv);
     });
 }
+
 
 /**
  * Closes the contact dialog.
@@ -185,20 +194,21 @@ function closeContactDialog() {
 /**
  * Returns the HTML for a contact item.
  */
-function renderHTMLLeftContactSide(name, email, phoneNumber, index, nextColor){
+function renderHTMLLeftContactSide(name, email, phoneNumber, id, nextColor) {
     let initials = getInitials(name);
 
     return `
-    <div onclick="showFullContact(${index}, '${nextColor}')" id="contactListInner${index}" class="contactListInner">
-    <div class="contactListInnerDiv" id="contactListInnerDiv${index}" onclick="changeBackgroundColor(this); showFullContactResponsive(${index});">
+    <div onclick="showFullContact(${id}, '${nextColor}')" id="contactListInner${id}" class="contactListInner">
+    <div class="contactListInnerDiv" id="contactListInnerDiv${id}" onclick="changeBackgroundColor(this); showFullContactResponsive(${id});">
     <div class="circleProfilPic" style="background-color: ${nextColor}">${initials}</div>
     <div class="nameAndEmail">
-        <p id="nameProfil${index}" class="nameProfil">${name}</p>
+        <p id="nameProfil${id}" class="nameProfil">${name}</p>
         <p class="emailAdress">${email}</p>
     </div>
     </div>
     `;
 }
+
 
 /**
  * Changes the background color of the clicked contact element.
@@ -220,8 +230,12 @@ function changeBackgroundColor(clickedElement) {
  * Gets the initials from a name.
  */
 function getInitials(name) {
+    if (!name) {
+        return ''; // Falls der Name nicht definiert ist, gebe eine leere Zeichenkette zurück
+    }
     return name.split(' ').map(word => word.charAt(0).toUpperCase()).join(' ');
 }
+
 
 /**
  * Returns the next color from the colors array.
@@ -238,12 +252,21 @@ function getNextColor() {
  * Shows the full contact details.
  * Updates the right section with the contact details and reveals the dialog.
  */
-function showFullContact(index, nextColor, id){
+function showFullContact(id, nextColor) {
     let content = document.getElementById('contactsRightSectionShowProfil');
     content.innerHTML = '';
-    let name = nameInput[index];
-    let email = emailInput[index];
-    let phone = phoneNumbersInput[index];
+
+    // Finde den Kontakt anhand der ID in der contacts-Liste
+    const index = contacts.findIndex(c => c.id === id);
+    if (index === -1) {
+        console.error('Kontakt nicht gefunden mit ID:', id);
+        return;
+    }
+
+    // Hole die Daten des gefundenen Kontakts
+    let name = contacts[index].name;
+    let email = contacts[index].email;
+    let phone = contacts[index].number;
     let initials = getInitials(name);
     let dialog = document.getElementById('contactsRightSectionShowProfil');
     
@@ -251,24 +274,28 @@ function showFullContact(index, nextColor, id){
     setTimeout(() => {
         dialog.classList.add('slide-in');
     }, 150);
-    content.innerHTML = HTMLTemplateShowFullContact(name, email, phone, initials, nextColor, index, id);
-} 
+    
+    content.innerHTML = HTMLTemplateShowFullContact(name, email, phone, initials, nextColor, id);
+}
+
+
+
 
 /**
  * Returns the HTML template for displaying full contact details.
  */
-function HTMLTemplateShowFullContact(name, email, phone, initials, nextColor, index, id){
+function HTMLTemplateShowFullContact(name, email, phone, initials, nextColor, id) {
     return `
     <div onclick="showFullContactResponsive()" id="contactsRightSectionShowProfilInner" class="contactsRightSectionShowProfilInner">
         <div class="circleProfilPicShow" style="background-color: ${nextColor}">${initials}</div>
         <div class="proilNameAndEdit">
             <p class="nameProfilShow">${name}</p>
             <div class="proilNameAndEditInner">
-                <p onclick="editContact('${index}', '${nextColor}')" class="profilEdit">Edit
-                    <img class="logoRightSection" src="./img/edit.svg">
+                <p onclick="editContact('${id}', '${nextColor}')" class="profilEdit">Edit
+                    <img class="logoRightSection" src="/img/edit.svg">
                 </p>
-                <p onclick="deleteContact('${index}')" class="profilDelete">Delete
-                    <img class="logoRightSection" src="./img/delete.png">
+                <p onclick="deleteContact('${id}')" class="profilDelete">Delete
+                    <img class="logoRightSection" src="/img/delete.png">
                 </p>
             </div>
         </div>
@@ -287,16 +314,17 @@ function HTMLTemplateShowFullContact(name, email, phone, initials, nextColor, in
         </div>
         <div class="editAndDeleteResponsiveDivOutside">
         <div class="editAndDeleteResponsive">
-            <img src="./img/more_vert.png" onclick="togglePopup(event)" alt="More">
+            <img src="/img/more_vert.png" onclick="togglePopup(event)" alt="More">
                 <div id="popup" class="popup">
-                    <p onclick="editContact('${index}', '${nextColor}')" class="profilEdit"><img class="logoRightSection" src="./img/edit.svg">Edit</p>
-                    <p onclick="deleteContact('${index}', '${id}')" class="profilDelete"><img class="logoRightSection" src="./img/delete.png">Delete</p>
+                    <p onclick="editContact('${id}', '${nextColor}')" class="profilEdit"><img class="logoRightSection" src="/img/edit.svg">Edit</p>
+                    <p onclick="deleteContact('${id}')" class="profilDelete"><img class="logoRightSection" src="/img/delete.png">Delete</p>
                 </div>
             </div>
         </div>
     </div>
-`;
+    `;
 }
+
 
 /**
  * Resets the input arrays.
@@ -324,10 +352,30 @@ function goBackResponsive() {
 /**
  * Fetches contact data from the server.
  */
-async function fetchContactsData(path) {
-    const response = await fetch(BASE_URL + path + ".json");
-    return await response.json();
+async function fetchContactsData() {
+    try {
+        const response = await fetch(BASE_URL + "contacts/", {
+            headers: {
+                'Authorization': `Token ${localStorage.getItem('token')}`
+            }
+        });
+
+        if (!response.ok) {
+            console.error('Failed to fetch contacts:', response.status, await response.text());
+            return [];  // Leeres Array zurückgeben, wenn die Anfrage fehlschlägt
+        }
+
+        const data = await response.json();
+        console.log('Fetched contacts:', data);  // Zum Debuggen
+
+        return data;  // Gib die abgerufenen Daten zurück
+    } catch (error) {
+        console.error('Error fetching contacts:', error);
+        return [];  // Im Fehlerfall auch ein leeres Array zurückgeben
+    }
 }
+
+
 
 /**
  * Processes the contacts data and renders it into the contact list.
@@ -336,15 +384,13 @@ async function fetchContactsData(path) {
 function processContacts(contactsData, contactList) {
     let loadedContacts = 0;
 
-    for (const key in contactsData) {
+    for (const contact of contactsData) {  // Iteriere direkt über das Array
         if (loadedContacts >= 10) {
             break;
         }
 
-        if (contactsData.hasOwnProperty(key)) {
-            processContact(contactsData[key], contactList, key);
-            loadedContacts++;
-        }
+        processContact(contact, contactList);  // Übergebe das ganze Kontakt-Objekt
+        loadedContacts++;
     }
 
     if (nameInput.length > 0 && emailInput.length > 0 && phoneNumbersInput.length > 0) {
@@ -352,22 +398,24 @@ function processContacts(contactsData, contactList) {
     }
 }
 
+
 /**
  * Processes a single contact and renders it into the contact list.
  * Extracts name, email, and number from the contact data, generates HTML, and updates the input arrays.
  */
-function processContact(contact, contactList, id) {
+function processContact(contact, contactList) {
     if (contact) {
-        const { name, email, nummer, color } = contact; 
-        const contactHTML = renderHTMLLeftContactSide(name, email, nummer, id, color);
+        const { id, name, email, number, color } = contact;  // Extrahiere die tatsächliche ID
+        const contactHTML = renderHTMLLeftContactSide(name, email, number, id, color);
 
         nameInput.push(name);
         emailInput.push(email);
-        phoneNumbersInput.push(nummer);
-        contactIds.push(id);
+        phoneNumbersInput.push(number);
+        contactIds.push(id);  // Speichere die tatsächliche ID
         loadedColors.push(color);
     }
 }
+
 
 /**
  * Sets the background menu for contacts.

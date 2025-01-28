@@ -96,7 +96,7 @@
     color: white !important;
 
     .contact-container-check {
-        background-image: url(../img/checkedbuttonWhite.svg);
+        background-image: url(/img/checkedbuttonWhite.svg);
     }
 }
 
@@ -126,7 +126,7 @@
 }
 
 .contact-container-check {
-    background-image: url(../img/CheckButtonBlue.svg);
+    background-image: url(/img/CheckButtonBlue.svg);
     width: 24px;
     height: 24px;
 }
@@ -197,12 +197,12 @@
     line-height: 25.2px !important;
 
     .urgentImg {
-        background-image: url(../img/PrioAltaWhite.svg);
+        background-image: url(/img/PrioAltaWhite.svg);
     }
 }
 
 .urgentImg {
-    background-image: url(../img/PrioAltaRed.svg);
+    background-image: url(/img/PrioAltaRed.svg);
     background-size: contain;
     background-repeat: no-repeat;
     width: 20px;
@@ -217,12 +217,12 @@
     line-height: 25.2px !important;
 
     .mediumImg {
-        background-image: url(../img/PrioMediaWhite.svg);
+        background-image: url(/img/PrioMediaWhite.svg);
     }
 }
 
 .mediumImg {
-    background-image: url(../img/PrioMediaOrange.svg);
+    background-image: url(/img/PrioMediaOrange.svg);
     background-size: contain;
     background-repeat: no-repeat;
     width: 20px;
@@ -237,12 +237,12 @@
     line-height: 25.2px !important;
 
     .lowImg {
-        background-image: url(../img/PrioBajaWhite.svg);
+        background-image: url(/img/PrioBajaWhite.svg);
     }
 }
 
 .lowImg {
-    background-image: url(../img/PrioBajaGreen.svg);
+    background-image: url(/img/PrioBajaGreen.svg);
     background-size: contain;
     background-repeat: no-repeat;
     width: 20px;

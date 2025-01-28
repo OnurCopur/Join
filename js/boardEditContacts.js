@@ -50,18 +50,20 @@ function openCloseEditContacts(event) {
  */
 function selectEditContact(i) {
   let container = document.getElementById(`contact-edit-container${i}`);
-  let contactName = contacts[i]['name'];
-  let contactColor = contacts[i]['color'];
-  let indexSelected = selectedEditContacts.findIndex(contact => contact.name === contactName);
-  if (contacts[i]['selected'] === true) {
+  let contact = contacts[i];
+  let indexSelected = selectedEditContacts.findIndex(c => c.id === contact.id);
+  
+  if (contact.selected) {
       selectedEditContacts.splice(indexSelected, 1);
-      contacts.splice(i, 1, { 'name': contactName, 'color': contactColor, 'selected': false });
-      container.classList.remove('contact-container-edit-focus');
+      contact.selected = false;
   } else {
-      selectedEditContacts.push({ 'name': contactName, 'color': contactColor, 'selected': true });
-      contacts.splice(i, 1, { 'name': contactName, 'color': contactColor, 'selected': true });
-      container.classList.add('contact-container-edit-focus');
+      selectedEditContacts.push(contact);
+      contact.selected = true;
   }
+
+  // Update the contact state in contacts array
+  contacts[i] = { ...contact };
+  container.classList.toggle('contact-container-edit-focus');
 }
 
 
@@ -75,13 +77,14 @@ function showSelectedEditContacts() {
   for (let i = 0; i < selectedEditContacts.length; i++) {
       let contact = selectedEditContacts[i];
       let name = contact['name'];
-      let initials = getInitials(name); // from contacts.js
+      let initials = getInitials(name); // Initialen aus den Kontaktdaten holen
       let color = selectedEditContacts[i]['color'];
       container.innerHTML += `
       <span style="background-color: ${color}" class="circleName">${initials}</span>
       `;
   }
 }
+
 
 
 /**
@@ -105,7 +108,7 @@ function searchEditContacts() {
       }
       showEditContactResults();
   } else {
-      renderEditContacts();
+      renderEditContacts('addTask-contacts-container-edit'); // Stelle sicher, dass der Containername korrekt übergeben wird
   }
 }
 

@@ -7,35 +7,42 @@ let prioText = "";
 
 
 /**
- * loads navBar, header, arrays from firebase & renders contacts
+ * loads navBar, header, arrays from backend & renders contacts
  */
 async function initBoard() {
   await initInclude();
+  await loadData();
   displayUserInitials();
   loadTasksBoard();
   updateHTML();
   renderEditContacts('addTask-contacts-container-edit');
-  renderContacts('addTask-contacts-container');
+  contactsRender('addTask-contacts-container');
   BoardBg();
   chooseMedium();
 }
 
 
+
 /**
  * loads Contacts
  */
-function renderEditContacts(contactContainer) {
-  let container = document.getElementById(`${contactContainer}`);
-  container.innerHTML = '';
+function renderEditContacts(contactContainer, isDropdown = false) {
+  let container = document.getElementById(contactContainer);
+  container.innerHTML = ''; 
+
   for (let i = 0; i < contacts.length; i++) {
       let name = contacts[i]['name'];
-      let initials = getInitials(name); // from contacts.js
+      let initials = getInitials(name); // Initialen generieren
       let color = contacts[i]['color'];
-      container.innerHTML += templateEditContact(i, name, initials, color);
-      if (contacts[i]['selected'] === true) {
-          document.getElementById(`contact-edit-container${i}`).classList.add('contact-container-edit-focus');
-      } else {
-          document.getElementById(`contact-edit-container${i}`).classList.remove('contact-container-edit-focus');
+      container.innerHTML += templateEditContact(i, name, initials, color, isDropdown);
+
+      // Fokus-Styling nur für Edit-Modus
+      if (!isDropdown) {
+          if (contacts[i]['selected'] === true) {
+              document.getElementById(`contact-edit-container${i}`).classList.add('contact-container-edit-focus');
+          } else {
+              document.getElementById(`contact-edit-container${i}`).classList.remove('contact-container-edit-focus');
+          }
       }
   }
 }
@@ -50,17 +57,21 @@ function renderEditContacts(contactContainer) {
  * @param {string} color - color of contact
  * @returns 
  */
-function templateEditContact(i, name, initials, color) {
+function templateEditContact(i, name, initials, color, isDropdown = false) {
+  let containerId = isDropdown ? `contact-container${i}` : `contact-edit-container${i}`;
+  let clickHandler = isDropdown ? `selectContact(${i})` : `selectEditContact(${i})`;
+
   return `
-  <div id="contact-edit-container${i}" onclick="selectEditContact(${i})" class="contact-container" tabindex="1">
+  <div id="${containerId}" onclick="${clickHandler}" class="contact-container" tabindex="1">
       <div class="contact-container-name">
-          <span style="background-color: ${color}" id="contactEditInitals${i}" class="circleName">${initials}</span>
+          <span style="background-color: ${color}" id="contactInitals${i}" class="circleName">${initials}</span>
           <span id="contactName${i}">${name}</span>
       </div>
       <div class="contact-container-check"></div>
   </div> 
-`;
+  `;
 }
+
 
 
 /**
@@ -103,27 +114,41 @@ function closeMe() {
 */
 function changeColorOfCategoryTitle() {
   for (let i = 0; i < tasks.length; i++) {
-    let content = document.getElementById(`cardCategoryTitle${i}`);
-    let category = tasks[i]["category"];
-    if (category.includes("User Story")) {
-      content.classList.add("blue");
-    } else if (category.includes("Technical Task")) {
-      content.classList.add("green");
+    let content = document.getElementById(`cardCategoryTitle${tasks[i].id}`);
+    
+    // Überprüfen, ob das Element existiert
+    if (content) {
+      let category = tasks[i]["category"];
+      if (category.includes("User Story")) {
+        content.classList.add("blue");
+      } else if (category.includes("Technical Task")) {
+        content.classList.add("green");
+      }
+    } else {
+      console.warn(`Element für Task ${tasks[i].id} nicht gefunden.`);
     }
   }
 }
+
 
 
 /**
  * Deletes the Task at the specified index in the task list.
  * @param {number} taskIndex - The index of the task to be edited.
  */
-function deleteTask(taskIndex) {
-  tasks.splice(taskIndex,1);
-  for (let j = 0; j < tasks.length; j++){
-    tasks[j].ID = j;
+function deleteTask(taskId) {
+  const taskIndex = tasks.findIndex(task => task.id === taskId);
+
+  if (taskIndex === -1) {
+    console.log('Task not found!');
+    return;
   }
-  putData("/tasks", tasks);
+
+  // Lösche den Task aus dem Array
+  tasks.splice(taskIndex, 1);
+
+  // Sende die DELETE-Anfrage mit der Task-ID
+  deleteData(taskId); // Nur Task-ID übergeben
   updateHTML();
   styleOfNoTaskToDo();
   styleOfNoTaskInProgress();
@@ -138,20 +163,22 @@ function deleteTask(taskIndex) {
 function searchTask() {
   let search = document.getElementById("search-input").value.toLowerCase();
   for (let i = 0; i < tasks.length; i++) {
-    let TaskCard = document.getElementById(`cardId${i}`);
-    const title = tasks[i]["title"].toLowerCase();
-    const description = tasks[i]["description"].toLowerCase();
-    if (TaskCard) {
+    let task = tasks[i];
+    let taskCard = document.getElementById(`cardId${task.id}`);  // Verwende task.id hier
+    const title = task.title.toLowerCase();  // Zugriff auf title ohne Array-Zugriff
+    const description = task.description.toLowerCase();  // Zugriff auf description ohne Array-Zugriff
+    if (taskCard) {
       if (title.includes(search) || description.includes(search)) {
-        TaskCard.style.display = "block";
+        taskCard.style.display = "block";
       } else {
-        TaskCard.style.display = "none";
+        taskCard.style.display = "none";
       }
     } else {
       console.log("Task Card not Found");
     }
   }
 }
+
 
 
 /**
@@ -215,49 +242,76 @@ let currentDraggedElement;
  * 
  * @param {string} id - id of Taskcard
 */
-function startDragging(id) {
-  currentDraggedElement = id;
+function startDragging(taskId) {
+  currentDraggedElement = taskId;
 }
+
 
 /**
  * change the value of the progress at the specified index in the task list.
  * @param {number} taskIndex - position of the Task accroding to Subtasks
  * @returns 
 */
-function valueOfProgressBar(taskIndex){
-  let value;
-    if(tasks[taskIndex]["subtasks"].length === 0){
+function valueOfProgressBar(taskId) {
+  let value = 0;
+  const task = tasks.find(t => t.id === taskId);  // Finde den Task mit der richtigen ID
+
+  if (task && Array.isArray(task.subtasks)) {
+    if (task.subtasks.length === 0) {
       value = 0;
-    }else if(tasks[taskIndex]["subtasks"].length === 1){
+    } else if (task.subtasks.length === 1) {
       value = 50;
-    }else{
+    } else {
       value = 100;
     }
-    return value;
+  }
+  return value;
 }
 
 
-/**
- * to render the Contacts 
-*/
-function contactsRender(){
-  for(let i = 0; i < tasks.length; i++){
-    let maxConatcts = 3;
-    let content = document.getElementById(`newDiv${i}`);
-    for(let j = 0; j < Math.min(tasks[i]['contacts'].length, maxConatcts); j++){
-      let letter = tasks[i]['contacts'][j]['name'].split(" ");
-      let result = "";
-      for(let name = 0; name < letter.length; name++){
-        result += letter[name].charAt(0).toUpperCase();
+function contactsRender() {
+  for (let i = 0; i < tasks.length; i++) {
+      let task = tasks[i];
+      let maxContacts = 3;
+      let content = document.getElementById(`newDiv${task.id}`);
+      
+      if (!content) {
+          console.warn(`Element mit der ID newDiv${task.id} nicht gefunden.`);
+          continue;
       }
-      content.innerHTML += `<div class="user-task-content" style="background-color:${tasks[i]['contacts'][j]['color']};">${result}</div>`;
-    }
-    if(tasks[i]["contacts"].length > maxConatcts){
-      let additionalContacts = tasks[i]["contacts"].length - maxConatcts;
-      let numberOfContacts = document.getElementById(`plus-number-contacts${i}`);
-      numberOfContacts.innerHTML ="";
-      numberOfContacts.innerHTML =`+${additionalContacts}`;
-    }
+
+      // Wenn keine Kontakte vorhanden sind, nichts tun
+      if (!task.contacts || task.contacts.length === 0) {
+          content.innerHTML = ''; // Leere Inhalte anzeigen, wenn keine Kontakte vorhanden sind
+          continue;
+      }
+      
+      content.innerHTML = ''; // Sicherstellen, dass alte Inhalte gelöscht werden
+      
+      for (let j = 0; j < Math.min(task.contacts.length, maxContacts); j++) {
+          let contactId = task.contacts[j];  // Erwartet, dass dies die Kontakt-ID ist
+          let contact = contacts.find(contact => contact.id === contactId); // Hole den Kontakt aus contacts anhand der ID
+          
+          if (!contact || !contact.name || !contact.color) {
+              console.warn(`Ungültige Kontaktdaten für Kontakt ${contactId} in Task ${task.id}:`, contact);
+              continue;
+          }
+
+          let initials = contact.name
+              .split(" ")
+              .map(word => word.charAt(0).toUpperCase())
+              .join("");
+              
+          content.innerHTML += `<div class="user-task-content" style="background-color:${contact.color}">${initials}</div>`;
+      }
+
+      if (task.contacts.length > maxContacts) {
+          let additionalContacts = task.contacts.length - maxContacts;
+          let numberOfContacts = document.getElementById(`plus-number-contacts${task.id}`);
+          if (numberOfContacts) {
+              numberOfContacts.innerHTML = `+${additionalContacts}`;
+          }
+      }
   }
 }
 
@@ -267,28 +321,33 @@ function contactsRender(){
  * @param {*} element 
  * @returns 
 */
- function genereteAllTasksHTML(element) {
-  return ` <div id ="cardId${element["ID"]}" draggable="true" ondragstart="startDragging(${element["ID"]})"  onclick="showTask(${element["ID"]})">
-  <div class="card">
-   <div id="cardCategoryTitle${element["ID"]}" class="card-category-title">${element["category"]}</div>
-   <div class="title-description-content">
-     <h2 class="card-title">${element["title"]}</h2>
-     <p class="card-description">${element["description"]}</p>
-   </div>
-   <div class="progress-bar-content">
-     <progress value="${valueOfProgressBar(element["ID"])}" max="100" id="progressBar${element["ID"]}"></progress>
-     <p class="card-subtasks-text"><span id="numberOfSubtask${element["ID"]}" class="numberOfSubtask">${element["subtasks"].length}/2</span> Subtasks</p>
-    </div>
-    <div class="card-user-content">
-      <div class="user-container-board">
-        <div class="user-inner-container" id="newDiv${element['ID']}"></div>
-        <div class="number-of-contacts" id = "plus-number-contacts${element['ID']}"></div>
+function genereteAllTasksHTML(element) {
+  const progressValue = valueOfProgressBar(element["id"]);  // Hole den Fortschrittswert hier
+  return ` 
+  <div id="cardId${element["id"]}" draggable="true" ondragstart="startDragging(${element["id"]})" onclick="showTask(${element["id"]})">
+    <div class="card">
+      <div id="cardCategoryTitle${element["id"]}" 
+        class="card-category-title" 
+        style="background-color: ${element["category_color"] || 'transparent'};">${element["category"]}</div>
+      <div class="title-description-content">
+        <h2 class="card-title">${element["title"]}</h2>
+        <p class="card-description">${element["description"]}</p>
       </div>
-      <img src="${element["prioIcon"]}" alt="">
+      <div class="progress-bar-content">
+        <progress value="${progressValue}" max="100" id="progressBar${element["id"]}"></progress>
+        <p class="card-subtasks-text"><span id="numberOfSubtask${element["id"]}" class="numberOfSubtask">${element["subtasks"].length}/2</span> Subtasks</p>
+      </div>
+      <div class="card-user-content">
+        <div class="user-container-board">
+          <div class="user-inner-container" id="newDiv${element['id']}"></div>
+          <div class="number-of-contacts" id="plus-number-contacts${element['id']}"></div>
+        </div>
+        <img src="${element["prioIcon"]}" alt="">
+      </div>
     </div>
-  </div>
   </div>`;
 }
+
 
 
 /**
@@ -305,13 +364,22 @@ function allowDrop(ev) {
  * @param {string} phase - The target phase of the Task.
 */
 function moveTo(phase) {
-  tasks[currentDraggedElement]["phases"] = phase;
-  updateHTML();
-  styleOfNoTaskToDo();
-  styleOfNoTaskInProgress();
-  styleOfNoTaskAwaitFeedback();
-  styleOfNoTaskDone(); 
-  putData("/tasks", tasks);
+  const taskIndex = tasks.findIndex(task => task.id === currentDraggedElement);
+
+  if (taskIndex !== -1) {
+      tasks[taskIndex].phases = phase; // Phase aktualisieren
+
+      updateHTML();
+      styleOfNoTaskToDo();
+      styleOfNoTaskInProgress();
+      styleOfNoTaskAwaitFeedback();
+      styleOfNoTaskDone();
+
+      // Task-ID und aktualisiertes Task-Objekt an putData übergeben
+      putData(tasks[taskIndex].id, tasks[taskIndex]);
+  } else {
+      console.error("Task mit id", currentDraggedElement, "wurde nicht gefunden.");
+  }
 }
 
 
@@ -373,6 +441,7 @@ function styleOfNoTaskDone(){
 function checkwidthForAddTask(){
     window.location.href = '../html/addTask.html';
 }
+
 
 /**
  * Checks the screen width and navigates to addTask.html if the width is 1075 pixels.

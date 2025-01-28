@@ -49,13 +49,22 @@ function updateGreeting() {
 function displayUsername() {
     // Den Benutzernamen aus der Session abrufen
     let username = sessionStorage.getItem('loggedInUser');
+    console.log("Logged in user:", username); // Log, um den Wert zu prüfen
+
     let greetingName = document.getElementById('nameGreeting');
     let greetingNameMobile = document.getElementById('nameGreetingMobile');
 
-    // Setze den Benutzernamen in das HTML-Element ein
-    greetingName.innerText = username;
-    greetingNameMobile.innerText = username;
+    // Wenn der Benutzername existiert, setze ihn in die HTML-Elemente
+    if (username) {
+        greetingName.innerText = username;
+        greetingNameMobile.innerText = username;
+    } else {
+        greetingName.innerText = "Guest"; // Fallback, wenn kein Benutzername gefunden wird
+        greetingNameMobile.innerText = "Guest";
+    }
 }
+
+
 
 
 /**
@@ -155,7 +164,16 @@ async function getTasksAndProcess() {
  */
 async function getTask() {
     try {
-        let response = await fetch(BASE_URL + "tasks.json");
+        let response = await fetch(BASE_URL + "tasks/", {
+            headers: {
+                'Authorization': `Token ${localStorage.getItem('token')}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
         let tasksData = await response.json();
 
         if (tasksData) {
@@ -168,6 +186,7 @@ async function getTask() {
         tasks = [];
     }
 }
+
 
 
 /**

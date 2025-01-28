@@ -81,9 +81,9 @@ function templateSubtaskListElement(i, subtask) {
     <div id="subtasks-list-element${i}" class="subtasks-list-element">
         <li ondblclick="editSubtask(${i})">${subtask}</li>
         <div class="subtasks-icon subtasks-icon-hidden">
-            <img onclick="editSubtask(${i})" src="../img/edit.svg" alt="Bearbeiten">
+            <img onclick="editSubtask(${i})" src="/img/edit.svg" alt="Bearbeiten">
             <div class="parting-line subtasks-icon-line"></div>
-            <img onclick="deleteSubtask(${i})" src="../img/delete.svg" alt="Löschen">
+            <img onclick="deleteSubtask(${i})" src="/img/delete.svg" alt="Löschen">
         </div>
     </div>
 `;
@@ -123,9 +123,9 @@ function templateEditSubtask(i) {
     return `
     <input id="newSubtask" value="${subtasks[i]}" class="inputfield subtask-edit-input" type="text">
     <div id="addTask-subtasks-icons" class="subtasks-icon">
-        <img onclick="deleteSubtask(${i})" src="../img/delete.svg" alt="Löschen">
+        <img onclick="deleteSubtask(${i})" src="/img/delete.svg" alt="Löschen">
         <div class="parting-line subtasks-icon-line"></div>
-        <img onclick="keepSubtask(${i})" src="../img/done.svg" alt="Bestätigen">
+        <img onclick="keepSubtask(${i})" src="/img/done.svg" alt="Bestätigen">
     </div>
     `;
 }

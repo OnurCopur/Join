@@ -1,7 +1,7 @@
 async function init() {
     await includeHTML();
     privacyPoliceBg();
-    await loadData();
+    await loadDataLogin();
     displayUserInitials();
 }
 
